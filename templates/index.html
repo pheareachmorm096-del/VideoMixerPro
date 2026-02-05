@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Mixer Pro | Creator Studio</title>
+    
+    <style>
+        :root {
+            --primary: #ff2442;
+            --primary-hover: #e01b36;
+            --dark: #333;
+            --light-bg: #f2f4f7;
+            --card-bg: #ffffff;
+            --border: #eaeaea;
+            --header-h: 60px;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background: var(--light-bg); 
+            margin: 0; color: #333; 
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+        }
+        .top-bar {
+            position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+            background: white; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        }
+        .top-bar-container { width: 95%; max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-weight: 800; font-size: 1.3rem; cursor: pointer; color: var(--dark); }
+        .logo span { color: var(--primary); }
+        .main-wrapper { 
+            margin-top: calc(var(--header-h) + 20px); width: 90%; max-width: 500px; 
+            padding-bottom: 50px; display: flex; flex-direction: column; align-items: center;
+        }
+        .ad-container { width: 100%; min-height: 100px; background: #fff; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; border-radius: 8px; }
+        .card { background: var(--card-bg); padding: 2rem; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.06); border: 1px solid var(--border); width: 100%; box-sizing: border-box; }
+        .tabs { display: flex; justify-content: center; margin-bottom: 25px; border-bottom: 2px solid #f0f0f0; }
+        .tab-btn { background: none; border: none; padding: 12px 20px; font-size: 1rem; cursor: pointer; color: #999; border-bottom: 3px solid transparent; transition: 0.3s; font-weight: 600; }
+        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        label { font-size: 0.85rem; font-weight: 700; color: #444; margin: 15px 0 8px 0; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+        input[type="text"], input[type="file"], select, input[type="number"] { width: 100%; padding: 14px; border: 2px solid #eee; border-radius: 12px; box-sizing: border-box; margin-bottom: 12px; font-size: 0.95rem; background: #fdfdfd; transition: 0.2s; }
+        input:focus, select:focus { border-color: var(--primary); outline: none; }
+        button.action-btn { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; margin-top: 15px; box-shadow: 0 4px 15px rgba(255, 36, 66, 0.25); transition: 0.2s; }
+        button.action-btn:hover { background: var(--primary-hover); transform: translateY(-2px); }
+        button.action-btn:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; transform: none; }
+        .download-btn { background: #00d26a; margin-top: 15px; display: none; text-align: center; text-decoration: none; color: white; padding: 16px; border-radius: 12px; font-weight: 700; box-shadow: 0 4px 15px rgba(0, 210, 106, 0.3); }
+        .download-btn:hover { background: #00b359; }
+        .suggestion-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 5px; }
+        .suggestion-item { position: relative; cursor: pointer; border: 2px solid transparent; border-radius: 10px; overflow: hidden; aspect-ratio: 16/9; background: #000; transition: 0.2s; }
+        .suggestion-item:hover { transform: scale(1.02); }
+        .suggestion-item.selected { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(255,36,66,0.2); }
+        .suggestion-item img, .suggestion-item video { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; transition: 0.2s; }
+        .suggestion-item.selected img, .suggestion-item.selected video { opacity: 1; }
+        .check-mark { position: absolute; top: 5px; right: 5px; background: var(--primary); color: white; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; opacity: 0; }
+        .suggestion-item.selected .check-mark { opacity: 1; }
+        .audio-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .audio-tab { flex: 1; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; text-align: center; font-size: 0.9rem; font-weight: 600; color: #666; transition: 0.2s; }
+        .audio-tab:hover { background: #f0f0f0; }
+        .audio-tab.active { background: var(--dark); color: white; border-color: var(--dark); }
+        .audio-list-box { max-height: 150px; overflow-y: auto; background: #fcfcfc; border: 1px solid #eee; border-radius: 10px; padding: 5px; margin-bottom: 10px; }
+        #playlistBox { margin-top: 10px; background: #fff; border: 1px solid #eee; border-radius: 12px; padding: 10px; min-height: 50px; }
+        .playlist-item { background: #f4f6f8; padding: 10px 12px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid transparent; transition: 0.2s; }
+        .playlist-item:hover { border-color: #ddd; background: #fff; }
+        .playlist-controls { display: flex; align-items: center; gap: 12px; }
+        .icon-btn { cursor: pointer; font-size: 1.1rem; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .play-icon { color: #444; }
+        .play-icon:hover { color: var(--primary); transform: scale(1.1); }
+        .delete-icon { color: #d93025; font-size: 1.2rem; }
+        .delete-icon:hover { color: #b0231a; }
+        .footer { width: 100%; padding: 10px 0; background: #fff; border-top: 1px solid var(--border); text-align: center; font-size: 0.85rem; color: #888; margin-top: auto; }
+        .hidden { display: none; }
+        video { width: 100%; border-radius: 12px; background: #000; margin-top: 10px; }
+        .loader-wrapper { display: none; margin-top: 20px; text-align: center; }
+        .spinner { width: 40px; height: 40px; margin: 0 auto 15px auto; border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #statusText { font-size: 0.9rem; color: #666; font-weight: 600; }
+        .error-msg { color: #d93025; background: #ffe6e6; padding: 10px; border-radius: 8px; margin-top: 10px; display: none; font-size: 0.9rem; text-align: center; font-weight: 600; }
+    </style>
+</head>
+<body onload="initPage()">
+    <header class="top-bar">
+        <div class="top-bar-container">
+            <div class="logo" onclick="window.location.reload()">VideoMixer<span>Pro</span></div>
+        </div>
+    </header>
+    <div class="main-wrapper">
+        <div class="ad-container"><span style="color:#ccc; font-size:0.8rem;">AdSpace (Top Banner)</span></div>
+        <div class="card">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="switchTab('xhs')">From Link</button>
+                <button class="tab-btn" onclick="switchTab('upload')">My Uploads</button>
+            </div>
+            <div id="xhs" class="tab-content active">
+                <label>Paste Video Link</label>
+                <input type="text" id="urlInput" placeholder="https://...">
+                <button onclick="fetchVideo()" class="action-btn" id="fetchBtn">Find Video</button>
+                <video id="player" controls></video>
+            </div>
+            <div id="upload" class="tab-content">
+                <div style="background: #fdfdfd; padding: 20px; border-radius: 12px; text-align: center; border: 2px dashed #ddd;">
+                    <p style="margin:0 0 10px 0; color:#666; font-weight:600;">Drag & Drop or Click</p>
+                    <input type="file" id="visualInput" multiple accept="image/*,video/*" style="margin-bottom:0; border:none; background:transparent;">
+                </div>
+                <label style="margin-top:20px;">Or Choose Suggestions</label>
+                <div id="visualSuggestions" class="suggestion-grid"></div>
+            </div>
+
+            <hr style="border:0; border-top:1px solid #eee; margin:25px 0;">
+
+            <div style="margin-top:20px; background:#f0f7ff; padding:15px; border-radius:12px; border:1px solid #cce5ff;">
+                <label>Video Size Mode</label>
+                <select id="aspectRatioSelect">
+                    <option value="original">Original (Keep Widescreen/Nature)</option>
+                    <option value="fullscreen">Full Screen (1920:1080 video)</option>
+                    <option value="shortvideo">Full Screen (1080x1920 Vertical/Shorts)</option>           
+                </select>
+            </div>
+
+            <label>1. Audio Source</label>
+            <div class="audio-tabs">
+                <div class="audio-tab active" onclick="switchAudioSource('upload')" id="tab-upload">Upload</div>
+                <div class="audio-tab" onclick="switchAudioSource('library')" id="tab-library">Library</div>
+            </div>
+            <div id="audio-upload-section">
+                <input type="file" id="audioInput" multiple accept="audio/*">
+                <label>Recommended Sounds</label>
+                <div id="audioSuggestions" class="audio-list-box"></div>
+            </div>
+            <div id="audio-library-section" class="hidden">
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <input type="text" id="fsQuery" placeholder="Search Freesound..." style="margin-bottom:0;">
+                    <button onclick="searchFreesound()" style="background:var(--dark); color:white; border:none; border-radius:10px; padding:0 15px; cursor:pointer;">🔍</button>
+                </div>
+                <div id="freesoundResults" class="audio-list-box hidden"></div>
+                <label>Your Library</label>
+                <div style="display:flex; gap:8px;">
+                    <select id="librarySelect" onchange="previewSound()" style="margin-bottom:0; flex-grow:1;">
+                        <option value="">-- Select Sound --</option>
+                    </select>
+                    <button onclick="addToPlaylist()" style="background:#00d26a; color:white; border:none; border-radius:10px; width:45px; font-size:1.2rem;">+</button>
+                    <button onclick="deleteFromLibrary()" style="background:#d93025; color:white; border:none; border-radius:10px; width:45px; font-size:1.2rem;">🗑</button>
+                </div>
+                <div id="playlistBox"><div style="color:#ccc; text-align:center; padding:10px; font-size:0.8rem;">Playlist is empty</div></div>
+                <audio id="audioPreview" style="width:100%; margin-top:10px;" controls></audio>
+            </div>
+            <div style="margin-top:25px;">
+                <label>2. Audio Strategy</label>
+                <select id="audioStrategy" onchange="toggleSwitchInput()">
+                    <option value="sequential">Play Sequentially</option>
+                    <option value="divide">Fit Equally</option>
+                    <option value="switch">Switch Every X Seconds</option>
+                </select>
+                <div id="switchTimeContainer" class="hidden">
+                    <label>Seconds per song</label>
+                    <input type="number" id="audioSwitchTime" value="10" min="1">
+                </div>
+                <label>3. Target Duration</label>
+                <select id="durationSelect">
+                    <option value="0">Loop to Match Audio (Recommended)</option>
+                    <option value="-1">Keep Original Video Length</option>
+                    <option value="1">Loop 1 Minute</option> 
+                    <option value="5">Loop 5 Minutes</option>
+                    <option value="10">Loop 10 Minutes</option>
+                    <option value="15">Loop 15 Minute</option>
+                    <option value="30">Loop 30 Minute</option>
+                    <option value="60">Loop 1 Hour</option>
+                </select>
+                <div class="checkbox-group" style="background:#f9f9f9; padding:15px; border-radius:12px; margin-top:15px; border:1px solid #eee;">
+                    <div style="margin-bottom:10px; display:flex; align-items:center;">
+                        <input type="checkbox" id="removeOutro" checked style="width:auto; margin:0 10px 0 0;">
+                        <span style="font-size:0.9rem;">Trim Ending (Remove Outro)</span>
+                    </div>
+                    <div style="display:flex; align-items:center;">
+                        <input type="checkbox" id="removeWatermark" style="width:auto; margin:0 10px 0 0;">
+                        <span style="font-size:0.9rem;">Crop Corners (Remove Logos)</span>
+                    </div>
+                </div>
+            </div>
+            <div id="errorMsg" class="error-msg"></div>
+            <div id="loaderWrapper" class="loader-wrapper">
+                <div class="spinner"></div>
+                <div id="statusText">Processing Video...</div>
+                <div style="font-size:0.8rem; color:#999; margin-top:5px;">Check your terminal for details</div>
+            </div>
+            <a id="downloadBtn" class="download-btn" href="#" target="_blank">⬇ Download Video</a>
+            <button onclick="createVideo()" class="action-btn" id="createBtn">Create Video</button>
+        </div>
+        <div class="ad-container"><span style="color:#ccc; font-size:0.8rem;">AdSpace (Bottom Rect)</span></div>
+    </div>
+    <footer class="footer"><p>&copy; 2026 Video Mixer Pro. All rights reserved.</p></footer>
+    <script>
+        let currentMode = 'xhs';
+        let currentAudioMode = 'upload';
+        let currentOriginalUrl = ""; 
+        let playlist = []; 
+        let selectedVisualSuggestions = new Set();
+        let selectedAudioSuggestions = new Set();
+
+        async function initPage() { await loadLibrarySounds(); await loadSuggestions(); }
+
+        async function createVideo() {
+            const btn = document.getElementById('createBtn'); 
+            const errorDiv = document.getElementById('errorMsg');
+            const loader = document.getElementById('loaderWrapper');
+            const statusTxt = document.getElementById('statusText');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            errorDiv.style.display = 'none';
+            downloadBtn.style.display = 'none';
+
+            const uploadTab = document.getElementById('upload');
+            const isUploadMode = uploadTab.classList.contains('active');
+
+            if (isUploadMode) {
+                const hasFiles = document.getElementById('visualInput').files.length > 0;
+                const hasSuggestions = selectedVisualSuggestions.size > 0;
+                if (!hasFiles && !hasSuggestions) return alert("Please select files or suggestions!");
+            } else {
+                if (!currentOriginalUrl) return alert("Please find a video first!");
+            }
+
+            if (currentAudioMode === 'library' && playlist.length === 0) return alert("Playlist is empty!");
+
+            const formData = new FormData();
+            
+            if (isUploadMode) {
+                for(let f of document.getElementById('visualInput').files) {
+                    formData.append('visual_files', f);
+                }
+                selectedVisualSuggestions.forEach(f => formData.append('visual_suggestions', f));
+            } else {
+                formData.append('video_url', currentOriginalUrl);
+            }
+
+            if (currentAudioMode === 'upload') {
+                for(let f of document.getElementById('audioInput').files) formData.append('audio_files', f);
+                selectedAudioSuggestions.forEach(f => formData.append('audio_suggestions', f));
+            } else {
+                playlist.forEach(s => formData.append('library_sounds', s));
+            }
+
+            // Settings
+            formData.append('duration', document.getElementById('durationSelect').value);
+            formData.append('aspect_ratio', document.getElementById('aspectRatioSelect').value); // ADDED
+            formData.append('audio_strategy', document.getElementById('audioStrategy').value);
+            formData.append('audio_switch_time', document.getElementById('audioSwitchTime').value);
+            formData.append('remove_outro', document.getElementById('removeOutro').checked);
+            formData.append('remove_watermark', document.getElementById('removeWatermark').checked);
+
+            btn.style.display = 'none'; 
+            loader.style.display = 'block'; 
+            statusTxt.innerText = "Initializing & Uploading...";
+
+            try {
+                const startRes = await fetch('/start-merge', { method: 'POST', body: formData });
+                if (!startRes.ok) throw new Error("Failed to start");
+                const startData = await startRes.json();
+                const taskId = startData.task_id;
+
+                const poll = setInterval(async () => {
+                try {
+                        const pRes = await fetch(`/progress/${taskId}`);
+                        const pData = await pRes.json();
+                        
+                        if(pData.status === 'error') {
+                            clearInterval(poll);
+                            throw new Error(pData.error);
+                        }
+
+                        document.getElementById('statusText').innerText = `Progress: ${pData.progress}%`;
+
+                        if(pData.status === 'done') {
+                            clearInterval(poll);
+                            document.getElementById('loaderWrapper').style.display = 'none';
+                            downloadBtn.href = `/download-result/${taskId}`;
+                            downloadBtn.style.display = 'block';
+                            btn.style.display = 'block';
+                            btn.innerText = "Create Another Video";
+                        }
+                    } catch(err) {
+                        clearInterval(poll);
+                        document.getElementById('loaderWrapper').style.display = 'none';
+                        document.getElementById('createBtn').style.display = 'block';
+                        errorDiv.innerText = "Error: " + err.message;
+                        errorDiv.style.display = 'block';
+                    }
+                }, 2000);
+
+            } catch (e) {
+                loader.style.display = 'none';
+                btn.style.display = 'block';
+                errorDiv.innerText = e.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        async function fetchVideo() {
+            const btn = document.getElementById('fetchBtn');
+            const urlIn = document.getElementById('urlInput');
+            const player = document.getElementById('player');
+            if(!urlIn.value) return alert("Please enter a link");
+            btn.disabled = true; btn.innerText = "Searching...";
+            try {
+                const res = await fetch('/get-video', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url: urlIn.value}) });
+                const d = await res.json();
+                if(d.error) throw new Error(d.error);
+                player.src = d.video_url; player.style.display = 'block'; currentOriginalUrl = d.original_url;
+            } catch(e) { alert(e.message); } finally { btn.disabled = false; btn.innerText = "Find Video"; }
+        }
+        function switchTab(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if(mode === 'xhs') { document.querySelector("button[onclick=\"switchTab('xhs')\"]").classList.add('active'); document.getElementById('xhs').classList.add('active'); }
+            else { document.querySelector("button[onclick=\"switchTab('upload')\"]").classList.add('active'); document.getElementById('upload').classList.add('active'); }
+        }
+        function switchAudioSource(mode) {
+            currentAudioMode = mode;
+            document.getElementById('tab-upload').className = mode === 'upload' ? 'audio-tab active' : 'audio-tab';
+            document.getElementById('tab-library').className = mode === 'library' ? 'audio-tab active' : 'audio-tab';
+            if(mode === 'upload') { document.getElementById('audio-upload-section').classList.remove('hidden'); document.getElementById('audio-library-section').classList.add('hidden'); } 
+            else { document.getElementById('audio-upload-section').classList.add('hidden'); document.getElementById('audio-library-section').classList.remove('hidden'); }
+        }
+        async function loadSuggestions() {
+            try {
+                const res = await fetch('/list-suggestions');
+                const data = await res.json();
+                const vGrid = document.getElementById('visualSuggestions'); vGrid.innerHTML = '';
+                [...data.video, ...data.image].forEach(file => {
+                    const isVid = file.endsWith('.mp4');
+                    const div = document.createElement('div'); div.className = 'suggestion-item';
+                    div.onclick = () => { if (selectedVisualSuggestions.has(file)) { selectedVisualSuggestions.delete(file); div.classList.remove('selected'); } else { selectedVisualSuggestions.add(file); div.classList.add('selected'); } };
+                    div.innerHTML = `${isVid ? `<video src="/suggestions/video/${file}" muted loop onmouseover="this.play()" onmouseout="this.pause()"></video>` : `<img src="/suggestions/image/${file}">`}<div class="check-mark">✓</div>`;
+                    vGrid.appendChild(div);
+                });
+                const aList = document.getElementById('audioSuggestions'); aList.innerHTML = '';
+                data.audio.forEach(file => {
+                    const div = document.createElement('div'); div.style.padding = "8px"; div.style.borderBottom = "1px solid #eee"; div.style.display = "flex"; div.style.alignItems = "center";
+                    div.innerHTML = `<input type="checkbox" style="width:auto; margin-right:10px; margin-bottom:0;" onchange="toggleAudioSuggestion(this, '${file}')"><span style="font-size:0.85rem; flex-grow:1;">${file}</span><span class="icon-btn play-icon" onclick="playPreviewOnly('/suggestions/audio/${file}')">▶</span>`;
+                    aList.appendChild(div);
+                });
+            } catch(e) {}
+        }
+        function toggleAudioSuggestion(cb, f) { cb.checked ? selectedAudioSuggestions.add(f) : selectedAudioSuggestions.delete(f); }
+        function playPreviewOnly(url) { const p = document.getElementById('audioPreview'); p.style.display = 'block'; p.pause(); p.src = url.replace(/ /g, '%20'); p.load(); p.play().catch(e=>{}); }
+        async function loadLibrarySounds() {
+            try {
+                const res = await fetch('/list-sounds'); const files = await res.json();
+                const select = document.getElementById('librarySelect'); select.innerHTML = '<option value="">-- Select Sound --</option>';
+                files.forEach(f => select.innerHTML += `<option value="${f}">${f}</option>`);
+            } catch(e) {}
+        }
+        function addToPlaylist() { const val = document.getElementById('librarySelect').value; if(val) { playlist.push(val); renderPlaylist(); } }
+        function removeFromPlaylist(idx) { playlist.splice(idx, 1); renderPlaylist(); }
+        function renderPlaylist() {
+            const box = document.getElementById('playlistBox');
+            if (playlist.length === 0) box.innerHTML = '<div style="color:#ccc; text-align:center; padding:10px; font-size:0.8rem;">Playlist is empty</div>';
+            else box.innerHTML = playlist.map((s, i) => `<div class="playlist-item"><span>${s}</span><div><span class="icon-btn play-icon" onclick="playPreviewOnly('/sounds/${encodeURIComponent(s)}')">▶</span> <span class="icon-btn delete-icon" onclick="removeFromPlaylist(${i})">×</span></div></div>`).join('');
+        }
+        function toggleSwitchInput() { const strat = document.getElementById('audioStrategy').value; document.getElementById('switchTimeContainer').className = strat === 'switch' ? '' : 'hidden'; }
+        function previewSound() { const f = document.getElementById('librarySelect').value; if(f) playPreviewOnly(`/sounds/${encodeURIComponent(f)}`); }
+        async function searchFreesound() {
+            const q = document.getElementById('fsQuery').value; if(!q) return;
+            const res = await fetch(`/search-freesound?q=${encodeURIComponent(q)}`); const sounds = await res.json();
+            const div = document.getElementById('freesoundResults'); div.className = 'audio-list-box'; div.classList.remove('hidden');
+            div.innerHTML = sounds.map(s => `<div style="padding:10px; border-bottom:1px solid #eee; display:flex;"><span class="icon-btn play-icon" onclick="playPreviewOnly('${s.previews['preview-hq-mp3']}')">▶</span><span style="flex-grow:1; cursor:pointer; margin-left:10px;" onclick="importFreesound('${s.previews['preview-hq-mp3']}', '${s.id}')">${s.name}</span></div>`).join('');
+        }
+        async function importFreesound(url, id) { await fetch('/import-freesound', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({url, id}) }); loadLibrarySounds(); alert("Imported!"); }
+        async function deleteFromLibrary() { const f = document.getElementById('librarySelect').value; if(f && confirm("Delete?")) { await fetch('/delete-sound', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({filename:f}) }); loadLibrarySounds(); } }
+    </script>
+</body>
+</html>
