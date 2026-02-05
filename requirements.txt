@@ -2,3 +2,4 @@ Flask
 requests
 playwright
 imageio-ffmpeg
+yt_dlp
