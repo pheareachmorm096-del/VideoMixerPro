@@ -1,4 +1,4 @@
-import os
+import os, subprocess
 import uuid
 import threading
 import requests
@@ -16,6 +16,8 @@ from task_processor import process_video_task
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024 
 
+if not os.path.exists("/opt/render/.cache/ms-playwright"):
+    subprocess.run(["playwright", "install", "chromium"])
 # --- SAFETY WRAPPER FOR ERRORS ---
 @app.errorhandler(500)
 def internal_error(error):
