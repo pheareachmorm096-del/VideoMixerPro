@@ -1,7 +1,7 @@
 import time
 import re
-import urllib.parse
 import yt_dlp
+from playwright.sync_api import sync_playwright
 
 # =====================================
 # CLEAN URL
@@ -9,52 +9,48 @@ import yt_dlp
 
 def resolve_short_link(url):
     match = re.search(r'(https?://[a-zA-Z0-9./?=&_%-]+)', url)
-    if match:
-        return match.group(1)
-    return url
+    return match.group(1) if match else url
 
 
 # =====================================
-# PLAYWRIGHT XHS SCRAPER
+# PLAYWRIGHT XHS SCRAPER (CLOUD SAFE)
 # =====================================
 
 def extract_xhs_playwright(url):
 
-    print(f" -> 🟢 Starting Browser (Playwright) for: {url}")
-
-    from playwright.sync_api import sync_playwright
+    print(f"🟢 Playwright XHS -> {url}")
 
     video_url = None
 
     with sync_playwright() as p:
 
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled"
+            ]
+        )
 
         context = browser.new_context(
             viewport={'width':1920,'height':1080},
-            user_agent="Mozilla/5.0"
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36"
         )
 
-        context.add_init_script(
-            "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
-        )
+        context.add_init_script("""
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+        """)
 
         page = context.new_page()
 
-        # Optional stealth
-        try:
-            from playwright_stealth import stealth_sync
-            stealth_sync(page)
-        except:
-            pass
+        page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
-        page.goto(url, wait_until="networkidle", timeout=30000)
-
-        for _ in range(3):
+        for _ in range(5):
             try:
                 page.wait_for_function(
-                    "() => typeof window.__INITIAL_STATE__ !== 'undefined'",
-                    timeout=30000
+                    "() => window.__INITIAL_STATE__ !== undefined",
+                    timeout=15000
                 )
 
                 data = page.evaluate("() => window.__INITIAL_STATE__")
@@ -63,8 +59,8 @@ def extract_xhs_playwright(url):
                     if isinstance(d, dict):
                         if 'masterUrl' in d:
                             return d['masterUrl']
-                        if 'originVideo' in d and 'url' in d['originVideo']:
-                            return d['originVideo']['url']
+                        if 'originVideo' in d and isinstance(d['originVideo'], dict):
+                            return d['originVideo'].get('url')
                         for v in d.values():
                             r = find_url(v)
                             if r:
@@ -90,10 +86,30 @@ def extract_xhs_playwright(url):
 
 
 # =====================================
+# YT-DLP FALLBACK (WITH HEADERS)
+# =====================================
+
+def extract_with_ytdlp(url):
+
+    ydl_opts = {
+        "quiet": True,
+        "nocheckcertificate": True,
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122 Safari/537.36",
+        "headers": {
+            "Referer": url
+        }
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+        return info.get("url")
+
+
+# =====================================
 # UNIVERSAL EXTRACTOR
 # =====================================
 
-def extract_video_universal(url, cookie=None):
+def extract_video_universal(url):
 
     url = resolve_short_link(url)
 
@@ -101,8 +117,6 @@ def extract_video_universal(url, cookie=None):
         return extract_xhs_playwright(url)
 
     try:
-        with yt_dlp.YoutubeDL({'quiet':True}) as ydl:
-            info = ydl.extract_info(url, download=False)
-            return info.get("url")
+        return extract_with_ytdlp(url)
     except:
         return None
