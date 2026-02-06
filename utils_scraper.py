@@ -39,8 +39,10 @@ def extract_xhs_playwright(url):
 
         # USE A FULL USER AGENT: Helps avoid immediate bot detection
         context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             viewport={'width': 1920, 'height': 1080},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            locale="zh-CN", # Matches XHS's primary language
+            timezone_id="Asia/Shanghai"
         )
 
         context.add_init_script(
