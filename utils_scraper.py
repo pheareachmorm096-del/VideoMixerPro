@@ -19,7 +19,6 @@ def resolve_short_link(url):
 # =====================================
 
 def extract_xhs_playwright(url):
-
     print(f" -> 🟢 Starting Browser (Playwright) for: {url}")
 
     from playwright.sync_api import sync_playwright
@@ -27,12 +26,21 @@ def extract_xhs_playwright(url):
     video_url = None
 
     with sync_playwright() as p:
+        # REQUIRED FOR RENDER: Add args to bypass sandbox and memory limits
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu"
+            ]
+        )
 
-        browser = p.chromium.launch(headless=True)
-
+        # USE A FULL USER AGENT: Helps avoid immediate bot detection
         context = browser.new_context(
-            viewport={'width':1920,'height':1080},
-            user_agent="Mozilla/5.0"
+            viewport={'width': 1920, 'height': 1080},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         )
 
         context.add_init_script(
@@ -41,50 +49,67 @@ def extract_xhs_playwright(url):
 
         page = context.new_page()
 
-        # Optional stealth
         try:
             from playwright_stealth import stealth_sync
             stealth_sync(page)
         except:
             pass
 
-        page.goto(url, wait_until="networkidle", timeout=30000)
+        try:
+            # Increase timeout and wait for network to be completely quiet
+            page.goto(url, wait_until="networkidle", timeout=60000)
+            
+            # SMALL DELAY: Give the JavaScript extra time to populate __INITIAL_STATE__
+            time.sleep(3)
 
-        for _ in range(3):
-            try:
-                page.wait_for_function(
-                    "() => typeof window.__INITIAL_STATE__ !== 'undefined'",
-                    timeout=30000
-                )
+            for attempt in range(3):
+                try:
+                    # Check if we were blocked by a Captcha/Shield
+                    if "verify" in page.url or page.query_selector('.captcha'):
+                        print(" -> ⚠️ Blocked by Captcha on Render IP.")
+                        break
 
-                data = page.evaluate("() => window.__INITIAL_STATE__")
+                    page.wait_for_function(
+                        "() => typeof window.__INITIAL_STATE__ !== 'undefined'",
+                        timeout=10000
+                    )
 
-                def find_url(d):
-                    if isinstance(d, dict):
-                        if 'masterUrl' in d:
-                            return d['masterUrl']
-                        if 'originVideo' in d and 'url' in d['originVideo']:
-                            return d['originVideo']['url']
-                        for v in d.values():
-                            r = find_url(v)
-                            if r:
-                                return r
-                    elif isinstance(d, list):
-                        for i in d:
-                            r = find_url(i)
-                            if r:
-                                return r
-                    return None
+                    data = page.evaluate("() => window.__INITIAL_STATE__")
+                    
+                    if not data:
+                        print(f" -> 🔄 Attempt {attempt+1}: Data empty, retrying...")
+                        time.sleep(2)
+                        continue
 
-                video_url = find_url(data)
+                    def find_url(d):
+                        if isinstance(d, dict):
+                            if 'masterUrl' in d:
+                                return d['masterUrl']
+                            if 'originVideo' in d and 'url' in d['originVideo']:
+                                return d['originVideo']['url']
+                            for v in d.values():
+                                r = find_url(v)
+                                if r: return r
+                        elif isinstance(d, list):
+                            for i in d:
+                                r = find_url(i)
+                                if r: return r
+                        return None
 
-                if video_url:
-                    break
+                    video_url = find_url(data)
+                    if video_url:
+                        print(" -> ✅ Video URL Extracted Successfully.")
+                        break
 
-            except:
-                time.sleep(2)
+                except Exception as e:
+                    print(f" -> ⚠️ Wait attempt {attempt+1} failed.")
+                    time.sleep(2)
 
-        browser.close()
+        except Exception as e:
+            print(f" -> ❌ Page load error: {e}")
+        
+        finally:
+            browser.close()
 
     return video_url
 
@@ -94,15 +119,25 @@ def extract_xhs_playwright(url):
 # =====================================
 
 def extract_video_universal(url, cookie=None):
-
     url = resolve_short_link(url)
 
     if "xiaohongshu" in url or "xhslink" in url:
-        return extract_xhs_playwright(url)
+        res = extract_xhs_playwright(url)
+        if res:
+            return res
+        else:
+            print(" -> ❌ Failed to extract XHS video.")
+            return None
 
     try:
-        with yt_dlp.YoutubeDL({'quiet':True}) as ydl:
+        # Use a real user agent for yt-dlp too
+        ydl_opts = {
+            'quiet': True,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             return info.get("url")
-    except:
+    except Exception as e:
+        print(f" -> ❌ yt-dlp error: {e}")
         return None
