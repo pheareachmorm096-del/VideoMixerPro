@@ -4,7 +4,8 @@ import subprocess
 import yt_dlp
 from config import TEMP_DIR, SOUNDS_DIR, SUGGESTIONS_DIR, HEADERS, tasks
 from utils_ffmpeg import run_ffmpeg, get_video_duration, VIDEO_ENCODER, ffmpeg_path
-
+from utils_scraper import extract_xhs_playwright
+import requests
 def download_douyin(video_url, output_path, task_id):
     """
     Fast Douyin/TikTok download using yt-dlp with multi-threading.
@@ -38,7 +39,48 @@ def download_douyin(video_url, output_path, task_id):
         print(f"[{task_id}] Douyin download error: {e}")
         raise
 
+def download_video_safe(url, output_path, task_id):
+    """
+    Intelligently switches between Playwright (for XHS) and yt-dlp (for others).
+    """
+    # CASE A: XIAOHONGSHU
+    if "xiaohongshu" in url or "xhslink" in url:
+        print(f"[{task_id}] Mode: Xiaohongshu (Playwright)")
+        direct_url = extract_xhs_playwright(url)
+        
+        if not direct_url:
+            raise Exception("Failed to extract XHS URL. Check Cookie/Captcha.")
 
+        # Download using requests (safer for direct links)
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Referer": "https://www.xiaohongshu.com/"
+        }
+        with requests.get(direct_url, headers=headers, stream=True, timeout=30) as r:
+            r.raise_for_status()
+            with open(output_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+    # CASE B: TIKTOK / DOUYIN / OTHERS
+    else:
+        print(f"[{task_id}] Mode: Standard (yt-dlp)")
+        # REMOVED aria2c to prevent server crashes
+        ydl_opts = {
+            'format': 'best',
+            'outtmpl': output_path,
+            'quiet': True,
+            'no_warnings': True,
+            'noprogress': True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+
+    # Verification
+    if not os.path.exists(output_path) or os.path.getsize(output_path) < 1000:
+        raise Exception("Download failed: File is empty or missing.")
+
+    return output_path
 def process_video_task(task_id, data, files_paths):
     temp_visual_raw = os.path.join(TEMP_DIR, f"raw_visual_{task_id}.mp4")
     temp_visual_clean = os.path.join(TEMP_DIR, f"clean_visual_{task_id}.mp4") 
@@ -75,8 +117,8 @@ def process_video_task(task_id, data, files_paths):
             visual_inputs = uploaded_visuals
         else:
             if not video_url: raise Exception("No Video Source")
-            temp_visual_raw = download_douyin(video_url, temp_visual_raw, task_id)
-
+            temp_visual_raw = download_video_safe(video_url, temp_visual_raw, task_id)#download_douyin(video_url, temp_visual_raw, task_id)
+            
             # Only sanitize if file seems broken
             file_size = os.path.getsize(temp_visual_raw)
             if file_size < 100_000:  # <100KB is likely an error page
