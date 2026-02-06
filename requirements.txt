@@ -1,6 +1,5 @@
 Flask
 requests
 playwright
-playwright-stealth
 imageio-ffmpeg
 yt_dlp
