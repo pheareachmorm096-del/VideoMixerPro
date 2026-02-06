@@ -3,3 +3,4 @@ requests
 playwright
 yt_dlp
 imageio-ffmpeg
+gunicorn
