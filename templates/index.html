@@ -39,12 +39,11 @@
         }
         /* Updated Ad Container to be flexible */
         .ad-container { 
+            display: block;           /* Changed from flex to block */
+            text-align: center;       /* Centers the ad */
             width: 100%; 
-            min-height: 100px; 
+            min-height: 100px;        /* reserves space */
             background: transparent; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
             margin-bottom: 20px; 
             overflow: hidden;
         }
@@ -111,7 +110,12 @@
                  data-ad-format="auto"
                  data-full-width-responsive="true"></ins>
             <script>
-                 (adsbygoogle = window.adsbygoogle || []).push({});
+                // Wait for the window to load so width is not 0
+                window.addEventListener('load', function() {
+                    if (document.querySelector('.ad-container').clientWidth > 0) {
+                        (adsbygoogle = window.adsbygoogle || []).push({});
+                    }
+                });
             </script>
         </div>
         <div class="card">

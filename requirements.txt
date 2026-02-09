@@ -1,6 +1,6 @@
-Flask
-requests
+flask
+yt-dlp
 playwright
-yt_dlp
-imageio-ffmpeg
+playwright-stealth
+requests
 gunicorn
